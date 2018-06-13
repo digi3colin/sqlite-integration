@@ -408,6 +408,30 @@ class PDOSQLiteDriver {
 			$this->_query = "PRAGMA table_info($tablename)";
 		}
 	}
+
+	/**
+	 * Method use by rewrite_limit_usage and rewrite_order_by_usage below
+	 *
+	 * */
+    private function is_enable_update_delete_limit($options){
+        foreach ($options as $opt) {
+            //the property maybe compile_option or compile_options
+            $option = '';
+
+            if(property_exists($opt, 'compile_options')){
+                $option = $opt->compile_options;
+            } else if(property_exists($opt, 'compile_option')) {
+                $option = $opt->compile_option;
+            }
+
+            if (stripos($option, 'ENABLE_UPDATE_DELETE_LIMIT') !== false) {
+                return true;
+            }
+
+            return false;
+        }
+    }
+
 	/**
 	 * Method to remove LIMIT clause from DELETE or UPDATE query.
 	 *
@@ -422,13 +446,14 @@ class PDOSQLiteDriver {
 	private function rewrite_limit_usage(){
 		$_wpdb = new PDODB();
 		$options = $_wpdb->get_results('PRAGMA compile_options');
-		foreach ($options as $opt) {
-			if (stripos($opt->compile_options, 'ENABLE_UPDATE_DELETE_LIMIT') !== false) return;
-		}
+
+		if($this->is_enable_update_delete_limit($options))return;
+
 		if (stripos($this->_query, '(select') === false) {
 			$this->_query = preg_replace('/\\s*LIMIT\\s*[0-9]$/i', '', $this->_query);
 		}
 	}
+
 	/**
 	 * Method to remove ORDER BY clause from DELETE or UPDATE query.
 	 *
@@ -440,10 +465,10 @@ class PDOSQLiteDriver {
 	 */
 	private function rewrite_order_by_usage() {
 		$_wpdb = new PDODB();
-		$options = $_wpdb->get_results('PRAGMA compile_options');
-		foreach ($options as $opt) {
-			if (stripos($opt->compile_options, 'ENABLE_UPDATE_DELETE_LIMIT') !== false) return;
-		}
+        $options = $_wpdb->get_results('PRAGMA compile_options');
+
+        if($this->is_enable_update_delete_limit($options))return;
+
 		if (stripos($this->_query, '(select') === false) {
 			$this->_query = preg_replace('/\\s+ORDER\\s+BY\\s*.*$/i', '', $this->_query);
 		}
