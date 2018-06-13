@@ -289,7 +289,7 @@ class SQLiteIntegration {
 	 */
 	function add_style_sheet() {
 		global $current_user;
-		get_currentuserinfo();
+		wp_get_current_user();
 		$admin_color = get_user_meta($current_user->ID, 'admin_color', true);
 		if ($admin_color == 'fresh') {
 			$stylesheet_file = 'style.min.css';
