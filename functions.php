@@ -505,7 +505,9 @@ class PDOSQLiteUDFS {
 	 */
 	public function least() {
 		$arg_list = func_get_args();
-		return "min($arg_list)";
+        $str_list = implode(' ,', $arg_list);
+
+		return "min($str_list)";
 	}
 	/**
 	 * Method to emulate MySQL GREATEST() function.
@@ -516,7 +518,9 @@ class PDOSQLiteUDFS {
 	 */
 	public function greatest() {
 		$arg_list = func_get_args();
-		return "max($arg_list)";
+		$str_list = implode(' ,', $arg_list);
+
+		return "max($str_list)";
 	}
 	/**
 	 * Method to dummy out MySQL GET_LOCK() function.
