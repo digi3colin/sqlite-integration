@@ -622,120 +622,19 @@ class PDOSQLiteDriver {
 	 */
 	private function execute_duplicate_key_update() {
 		if (!$this->rewrite_duplicate_key) return;
-		$unique_keys_for_cond  = array();
-		$unique_keys_for_check = array();
+
 		$pattern =  '/^\\s*INSERT\\s*INTO\\s*(\\w+)?\\s*(.*)\\s*ON\\s*DUPLICATE\\s*KEY\\s*UPDATE\\s*(.*)$/ims';
 		if (preg_match($pattern, $this->_query, $match_0)) {
 			$table_name  = trim($match_0[1]);
 			$insert_data = trim($match_0[2]);
-			$update_data = trim($match_0[3]);
-			// prepare two unique key data for the table
-			// 1. array('col1', 'col2, col3', etc) 2. array('col1', 'col2', 'col3', etc)
-			$_wpdb = new PDODB();
-			$indexes = $_wpdb->get_results("SHOW INDEX FROM {$table_name}");
-			if (!empty($indexes)) {
-			  foreach ($indexes as $index) {
-			    if ($index->Non_unique == 0) {
-			      $unique_keys_for_cond[] = $index->Column_name;
-			      if (strpos($index->Column_name, ',') !== false) {
-			        $unique_keys_for_check = array_merge($unique_keys_for_check, explode(',', $index->Column_name));
-			      } else {
-			        $unique_keys_for_check[] = $index->Column_name;
-			      }
-			    }
-			  }
-			  $unique_keys_for_check = array_map('trim', $unique_keys_for_check);
-			} else {
-			  // Without unique key or primary key, UPDATE statement will affect all the rows!
-			  $query        = 'INSERT INTO '.$table_name.' '.$insert_data;
-			  $this->_query = $query;
-			  $_wpdb = null;
-			  return;
-			}
-			// data check
-			if (preg_match('/^\((.*)\)\\s*VALUES\\s*\((.*)\)$/ims', $insert_data, $match_1)) {
-				$col_array      = explode(',', $match_1[1]);
-				$ins_data_array = explode(',', $match_1[2]);
-				foreach ($col_array as $col) {
-					$val = trim(array_shift($ins_data_array));
-					$ins_data_assoc[trim($col)] = $val;
-				}
-				$condition = '';
-				foreach ($unique_keys_for_cond as $unique_key) {
-					if (strpos($unique_key, ',') !== false) {
-						$unique_key_array = explode(',', $unique_key);
-						$counter          = count($unique_key_array);
-						for ($i = 0; $i < $counter; ++$i) {
-							$col = trim($unique_key_array[$i]);
-							if (isset($ins_data_assoc[$col]) && $i == $counter - 1) {
-								$condition .= $col . '=' . $ins_data_assoc[$col] . ' OR ';
-							} elseif (isset($ins_data_assoc[$col])) {
-								$condition .= $col . '=' . $ins_data_assoc[$col] . ' AND ';
-							} else {
-								continue;
-							}
-						}
-					} else {
-						$col = trim($unique_key);
-						if (isset($ins_data_assoc[$col])) {
-							$condition .= $col . '=' . $ins_data_assoc[$col] . ' OR ';
-						} else {
-							continue;
-						}
-					}
-				}
-				$condition  = rtrim($condition, ' OR ');
-				$test_query = "SELECT * FROM {$table_name} WHERE {$condition}";
-				$results    = $_wpdb->query($test_query);
-				$_wpdb = null;
-				if ($results == 0) {
-					$this->_query = 'INSERT INTO '.$table_name.' '.$insert_data;
-					return;
-				} else {
-					if (preg_match('/^\((.*)\)\\s*VALUES\\s*\((.*)\)$/im', $insert_data, $match_2)) {
-						$col_array = explode(',', $match_2[1]);
-						$ins_array = explode(',', $match_2[2]);
-						$count     = count($col_array);
-						for ($i = 0; $i < $count; $i++) {
-							$col = trim($col_array[$i]);
-							$val = trim($ins_array[$i]);
-							$ins_array_assoc[$col] = $val;
-						}
-					}
-					$update_data = rtrim($update_data, ';');
-					$tmp_array   = explode(',', $update_data);
-					foreach ($tmp_array as $pair) {
-						list($col, $value) = explode('=', $pair);
-						$col   = trim($col);
-						$value = trim($value);
-						$update_array_assoc[$col] = $value;
-					}
-					foreach ($update_array_assoc as $key => &$value) {
-						if (preg_match('/^VALUES\\s*\((.*)\)$/im', $value, $match_3)) {
-							$col   = trim($match_3[1]);
-							$value = $ins_array_assoc[$col];
-						}
-					}
-					foreach ($ins_array_assoc as $key => $val) {
-						if (in_array($key, $unique_keys_for_check)) {
-							$where_array[] = $key . '=' . $val;
-						}
-					}
-					$update_strings = '';
-					foreach ($update_array_assoc as $key => $val) {
-						if (in_array($key, $unique_keys_for_check)) {
-							$where_array[] = $key . '=' . $val;
-						} else {
-							$update_strings .= $key . '=' . $val . ',';
-						}
-					}
-					$update_strings = rtrim($update_strings, ',');
-					$unique_where   = array_unique($where_array, SORT_REGULAR);
-					$where_string   = ' WHERE ' . implode(' AND ', $unique_where);
-					$update_query = 'UPDATE ' . $table_name . ' SET ' . $update_strings . $where_string;
-					$this->_query = $update_query;
-				}
-			}
+
+			// please resolve conflict in sqlite table setting
+            // eg:
+            // table_name    NOT NULL
+            //               DEFAULT ''
+            //               UNIQUE ON CONFLICT REPLACE,
+
+            $this->_query = 'INSERT INTO '.$table_name.' '.$insert_data;
 		}
 	}
 	/**
