@@ -628,6 +628,7 @@ class PDOSQLiteDriver {
 			$table_name  = trim($match_0[1]);
 			$insert_data = trim($match_0[2]);
 
+			// upsert require SQLite 3.24.0 , but PHP 7.1 using 3.15.1
 			// please resolve conflict in sqlite table setting
             // eg:
             // table_name    NOT NULL
